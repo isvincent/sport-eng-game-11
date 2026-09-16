@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>運動英文閃電戰</title>
+<style>
+  /* ---------- 設計 token ---------- */
+  :root{
+    --stadium:#141B33;        /* 深夜球場底 */
+    --stadium-2:#1E2749;      /* 稍亮的層 */
+    --line:#33406B;           /* 分隔線 */
+    --ink:#F5F7FB;            /* 主文字 */
+    --ink-dim:#9AA6CE;        /* 次文字 */
+    --gold:#FFD34E;           /* 分數 */
+    /* 四個角落色區：學生移動到的四個「顏色區」 */
+    --z1:#FF6B35;   /* 左上 橘 */
+    --z2:#12C9C9;   /* 右上 青 */
+    --z3:#9BE12E;   /* 左下 綠 */
+    --z4:#F5459B;   /* 右下 桃 */
+    --ok:#22C55E;
+    --no:#EF4444;
+    --font: "Arial Black","Segoe UI","PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    font-family:var(--font);
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #24305c 0%, transparent 60%),
+      var(--stadium);
+    color:var(--ink);
+    overflow:hidden;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  .screen{position:fixed;inset:0;display:none;}
+  .screen.active{display:block;}
+
+  /* ---------- 開始畫面 ---------- */
+  #start{overflow-y:auto;}
+  .wrap{max-width:1000px;margin:0 auto;padding:clamp(20px,4vh,48px) 24px 48px;}
+  .badge{display:inline-block;font-size:clamp(12px,1.6vh,15px);letter-spacing:.15em;
+    color:var(--stadium);background:var(--gold);padding:6px 14px;border-radius:999px;font-weight:900;}
+  h1{font-size:clamp(38px,8vw,86px);line-height:.95;margin:14px 0 6px;letter-spacing:-.02em;}
+  h1 .lightning{color:var(--z2);}
+  .tag{color:var(--ink-dim);font-size:clamp(15px,2.2vh,20px);font-weight:600;max-width:40ch;line-height:1.5;}
+
+  .panel{background:var(--stadium-2);border:2px solid var(--line);border-radius:20px;
+    padding:22px 22px 24px;margin-top:22px;}
+  .panel h2{font-size:clamp(17px,2.4vh,22px);margin-bottom:14px;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;}
+  .chip{flex:1 1 140px;min-width:130px;cursor:pointer;border:2px solid var(--line);
+    background:#182042;color:var(--ink);border-radius:14px;padding:16px 14px;text-align:left;
+    font-family:var(--font);transition:transform .08s ease,border-color .12s ease,background .12s ease;}
+  .chip:hover{transform:translateY(-2px);}
+  .chip .chip-icon{font-size:26px;line-height:1;}
+  .chip .chip-name{font-size:clamp(16px,2vh,19px);margin-top:8px;}
+  .chip .chip-sub{font-size:12px;color:var(--ink-dim);margin-top:3px;font-weight:600;}
+  .chip.sel{border-color:var(--gold);background:#22305f;box-shadow:0 0 0 3px rgba(255,211,78,.18);}
+  .chip.z1.sel{border-color:var(--z1);box-shadow:0 0 0 3px rgba(255,107,53,.25);}
+
+  textarea{width:100%;min-height:96px;background:#0f1633;border:2px solid var(--line);
+    border-radius:12px;color:var(--ink);padding:12px 14px;font-size:15px;font-family:var(--font);resize:vertical;}
+  textarea::placeholder{color:#5c6aa0;}
+
+  .start-btn{margin-top:26px;width:100%;cursor:pointer;border:none;border-radius:18px;
+    padding:22px;font-size:clamp(22px,3.4vh,30px);font-weight:900;font-family:var(--font);
+    color:var(--stadium);background:linear-gradient(100deg,var(--gold),#ffb32e);
+    transition:transform .08s ease,filter .12s ease;letter-spacing:.02em;}
+  .start-btn:hover{filter:brightness(1.05);}
+  .start-btn:active{transform:scale(.985);}
+
+  /* ---------- 遊戲畫面 ---------- */
+  #game{background:transparent;}
+  .hud{position:absolute;top:0;left:50%;transform:translateX(-50%);
+    display:flex;gap:8px;padding:10px 10px 0;z-index:20;pointer-events:none;}
+  .hud .stat{background:rgba(10,16,40,.82);border:1.5px solid var(--line);border-radius:0 0 16px 16px;
+    padding:8px 20px;text-align:center;backdrop-filter:blur(4px);}
+  .hud .stat .k{font-size:11px;color:var(--ink-dim);font-weight:800;letter-spacing:.08em;}
+  .hud .stat .v{font-size:clamp(22px,3.4vh,32px);line-height:1;margin-top:2px;}
+  .hud .timerbar{position:absolute;left:0;bottom:0;height:4px;background:var(--z2);
+    width:100%;transform-origin:left;transition:transform .1s linear;}
+  #vScore{color:var(--gold);}
+  #vCombo{color:var(--z1);}
+
+  /* 中央題目卡 */
+  .prompt{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:15;
+    width:min(30vw,290px);text-align:center;pointer-events:none;}
+  .prompt .emoji{font-size:clamp(48px,10vh,96px);line-height:1;filter:drop-shadow(0 6px 12px rgba(0,0,0,.4));}
+  .prompt .word{font-size:clamp(30px,6.2vh,58px);margin-top:6px;line-height:1.05;}
+  .prompt .hint{font-size:clamp(12px,1.8vh,15px);color:var(--ink-dim);font-weight:700;margin-top:10px;
+    letter-spacing:.1em;}
+
+  /* 四角落選項 */
+  .zone{position:absolute;width:44vw;height:39vh;border:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;text-align:center;
+    color:#0d1330;font-family:var(--font);border-radius:26px;overflow:hidden;
+    transition:transform .08s ease,filter .12s ease;padding:14px;}
+  .zone:active{transform:scale(.975);}
+  .zone .zlabel{font-size:clamp(28px,6.5vh,64px);line-height:1.02;font-weight:900;
+    text-shadow:0 2px 0 rgba(255,255,255,.25);word-break:break-word;}
+  .zone .corner-tag{position:absolute;top:12px;font-size:12px;font-weight:900;opacity:.55;letter-spacing:.1em;}
+  #zTL{top:12px;left:12px;background:var(--z1);}      #zTL .corner-tag{left:16px;}
+  #zTR{top:12px;right:12px;background:var(--z2);}     #zTR .corner-tag{right:16px;}
+  #zBL{bottom:12px;left:12px;background:var(--z3);}   #zBL .corner-tag{left:16px;}
+  #zBR{bottom:12px;right:12px;background:var(--z4);}  #zBR .corner-tag{right:16px;}
+  .zone.correct{animation:pop .4s ease;box-shadow:0 0 0 6px var(--ok),0 0 40px var(--ok);}
+  .zone.wrong{animation:shake .4s ease;box-shadow:0 0 0 6px var(--no),0 0 40px var(--no);filter:grayscale(.3);}
+  .zone.reveal{box-shadow:0 0 0 6px var(--ok),0 0 40px var(--ok);}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.05)}100%{transform:scale(1)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}
+    40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+
+  /* 飄分 */
+  .float{position:absolute;z-index:30;font-size:clamp(26px,4.4vh,44px);font-weight:900;
+    color:var(--gold);pointer-events:none;animation:floatUp .8s ease forwards;text-shadow:0 2px 6px rgba(0,0,0,.5);}
+  @keyframes floatUp{0%{opacity:0;transform:translate(-50%,0) scale(.7)}
+    20%{opacity:1}100%{opacity:0;transform:translate(-50%,-90px) scale(1.1)}}
+
+  /* 倒數 3-2-1 */
+  #countdown{position:absolute;inset:0;display:none;z-index:40;align-items:center;justify-content:center;
+    background:rgba(10,14,34,.7);backdrop-filter:blur(3px);}
+  #countdown.on{display:flex;}
+  #countNum{font-size:clamp(90px,26vh,240px);color:var(--z2);animation:cd .6s ease;}
+  @keyframes cd{0%{transform:scale(.4);opacity:0}40%{opacity:1}100%{transform:scale(1.4);opacity:0}}
+
+  /* ---------- 結束畫面 ---------- */
+  #end .wrap{text-align:center;padding-top:clamp(30px,8vh,90px);}
+  #end h1{font-size:clamp(34px,7vw,72px);}
+  .scoreBig{font-size:clamp(64px,16vh,150px);color:var(--gold);line-height:1;margin:8px 0 4px;}
+  .statgrid{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:22px 0 8px;}
+  .statgrid .box{background:var(--stadium-2);border:2px solid var(--line);border-radius:16px;
+    padding:16px 26px;min-width:120px;}
+  .statgrid .box .bk{font-size:12px;color:var(--ink-dim);font-weight:800;letter-spacing:.08em;}
+  .statgrid .box .bv{font-size:clamp(26px,4vh,38px);margin-top:4px;}
+  .endbtns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:24px;}
+  .endbtns button{cursor:pointer;border-radius:16px;padding:18px 30px;font-size:clamp(18px,2.6vh,22px);
+    font-weight:900;font-family:var(--font);border:2px solid var(--line);}
+  .btn-again{background:linear-gradient(100deg,var(--gold),#ffb32e);color:var(--stadium);border-color:transparent;}
+  .btn-menu{background:transparent;color:var(--ink);}
+  .cheer{color:var(--ink-dim);font-size:clamp(16px,2.4vh,22px);font-weight:700;margin-top:10px;}
+
+  @media (max-width:720px){
+    .zone .zlabel{font-size:clamp(22px,7vw,40px);}
+    .prompt .word{font-size:clamp(26px,7vw,40px);}
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== 開始畫面 ========== -->
+<section id="start" class="screen active">
+  <div class="wrap">
+    <span class="badge">體育班 · 反應移動英文遊戲</span>
+    <h1>運動英文<span class="lightning">閃電戰</span></h1>
+    <p class="tag">題目出現在螢幕中央，四個英文選項分別守在四個角落。看懂意思，衝到正確的角落點下去——反應越快、連擊越長，分數越高。</p>
+
+    <div class="panel">
+      <h2>1 · 選一個單字包</h2>
+      <div class="row" id="packRow"></div>
+    </div>
+
+    <div class="panel" id="customPanel" style="display:none;">
+      <h2>自訂單字包</h2>
+      <p class="chip-sub" style="margin-bottom:10px;color:var(--ink-dim);font-weight:600;">
+        一行一個，格式：<b>english,中文</b>（可再加第三欄放 emoji）。例如：<code>run,跑步,🏃</code></p>
+      <textarea id="customText" placeholder="run,跑步,🏃&#10;jump,跳,🤸&#10;pass,傳球,🤾"></textarea>
+    </div>
+
+    <div class="panel">
+      <h2>2 · 題目方向 & 時間</h2>
+      <div class="row" style="margin-bottom:12px;">
+        <button class="chip sel" data-mode="zh2en">
+          <div class="chip-icon">🇹🇼→🔤</div><div class="chip-name">看中文，點英文</div>
+          <div class="chip-sub">練拼字辨識（推薦）</div></button>
+        <button class="chip" data-mode="en2zh">
+          <div class="chip-icon">🔤→🇹🇼</div><div class="chip-name">看英文，點中文</div>
+          <div class="chip-sub">練閱讀理解</div></button>
+      </div>
+      <div class="row">
+        <button class="chip" data-time="90"><div class="chip-name">練習 90 秒</div><div class="chip-sub">慢慢來</div></button>
+        <button class="chip sel" data-time="60"><div class="chip-name">標準 60 秒</div><div class="chip-sub">上課首選</div></button>
+        <button class="chip" data-time="45"><div class="chip-name">挑戰 45 秒</div><div class="chip-sub">拚極限</div></button>
+      </div>
+    </div>
+
+    <button class="start-btn" id="startBtn">開始比賽 ⚡</button>
+    <p class="chip-sub" style="text-align:center;margin-top:14px;color:var(--ink-dim);font-weight:600;">
+      建議把觸屏放大到全螢幕（按 F11），讓四個角落離得夠遠，學生才要真的移動。</p>
+  </div>
+</section>
+
+<!-- ========== 遊戲畫面 ========== -->
+<section id="game" class="screen">
+  <div class="hud">
+    <div class="stat"><div class="k">時間</div><div class="v" id="vTime">60</div></div>
+    <div class="stat"><div class="k">分數</div><div class="v" id="vScore">0</div></div>
+    <div class="stat"><div class="k">連擊</div><div class="v" id="vCombo">0</div></div>
+    <div class="timerbar" id="timerbar"></div>
+  </div>
+
+  <div class="prompt" id="prompt">
+    <div class="emoji" id="pEmoji">🏃</div>
+    <div class="word" id="pWord">跑步</div>
+    <div class="hint" id="pHint">衝到正確的角落！</div>
+  </div>
+
+  <button class="zone" id="zTL"><span class="corner-tag">左上</span><span class="zlabel"></span></button>
+  <button class="zone" id="zTR"><span class="corner-tag">右上</span><span class="zlabel"></span></button>
+  <button class="zone" id="zBL"><span class="corner-tag">左下</span><span class="zlabel"></span></button>
+  <button class="zone" id="zBR"><span class="corner-tag">右下</span><span class="zlabel"></span></button>
+
+  <div id="countdown"><div id="countNum">3</div></div>
+</section>
+
+<!-- ========== 結束畫面 ========== -->
+<section id="end" class="screen">
+  <div class="wrap">
+    <span class="badge">比賽結束</span>
+    <div class="scoreBig" id="eScore">0</div>
+    <p class="cheer" id="eCheer">好表現！</p>
+    <div class="statgrid">
+      <div class="box"><div class="bk">答對題數</div><div class="bv" id="eCorrect">0</div></div>
+      <div class="box"><div class="bk">命中率</div><div class="bv" id="eAcc">0%</div></div>
+      <div class="box"><div class="bk">最長連擊</div><div class="bv" id="eBest">0</div></div>
+    </div>
+    <div class="endbtns">
+      <button class="btn-again" id="againBtn">再玩一次 🔁</button>
+      <button class="btn-menu" id="menuBtn">回主選單</button>
+    </div>
+  </div>
+</section>
+
+<script>
+/* =======================================================
+   運動英文閃電戰  —  單一 HTML、可離線、無外部相依
+   核心：四個英文選項放在螢幕四角，學生移動到正確角落點擊
+   ======================================================= */
+
+/* ---------- 單字資料（體育班主題） ---------- */
+const PACKS = {
+  actions:{ name:"運動動作", icon:"🏃", sub:"15 字", words:[
+    {en:"run",zh:"跑步",emoji:"🏃"},{en:"jump",zh:"跳躍",emoji:"🤸"},
+    {en:"throw",zh:"投擲",emoji:"🤾"},{en:"catch",zh:"接",emoji:"🧤"},
+    {en:"kick",zh:"踢",emoji:"🦵"},{en:"dribble",zh:"運球",emoji:"⛹️"},
+    {en:"sprint",zh:"衝刺",emoji:"💨"},{en:"stretch",zh:"伸展",emoji:"🧘"},
+    {en:"swim",zh:"游泳",emoji:"🏊"},{en:"climb",zh:"攀爬",emoji:"🧗"},
+    {en:"pass",zh:"傳球",emoji:"🤝"},{en:"shoot",zh:"射門/投籃",emoji:"🎯"},
+    {en:"serve",zh:"發球",emoji:"🏐"},{en:"balance",zh:"平衡",emoji:"⚖️"},
+    {en:"dive",zh:"跳水",emoji:"🤿"} ]},
+  sports:{ name:"運動項目", icon:"🏀", sub:"12 字", words:[
+    {en:"basketball",zh:"籃球",emoji:"🏀"},{en:"soccer",zh:"足球",emoji:"⚽"},
+    {en:"volleyball",zh:"排球",emoji:"🏐"},{en:"badminton",zh:"羽球",emoji:"🏸"},
+    {en:"baseball",zh:"棒球",emoji:"⚾"},{en:"tennis",zh:"網球",emoji:"🎾"},
+    {en:"swimming",zh:"游泳",emoji:"🏊"},{en:"running",zh:"田徑",emoji:"🏃"},
+    {en:"gymnastics",zh:"體操",emoji:"🤸"},{en:"cycling",zh:"自行車",emoji:"🚴"},
+    {en:"boxing",zh:"拳擊",emoji:"🥊"},{en:"table tennis",zh:"桌球",emoji:"🏓"} ]},
+  body:{ name:"身體部位", icon:"💪", sub:"12 字", words:[
+    {en:"head",zh:"頭",emoji:"🗣️"},{en:"shoulder",zh:"肩膀",emoji:"💪"},
+    {en:"knee",zh:"膝蓋",emoji:"🦵"},{en:"ankle",zh:"腳踝",emoji:"🦶"},
+    {en:"wrist",zh:"手腕",emoji:"✋"},{en:"elbow",zh:"手肘",emoji:"💪"},
+    {en:"muscle",zh:"肌肉",emoji:"💪"},{en:"heart",zh:"心臟",emoji:"❤️"},
+    {en:"lung",zh:"肺",emoji:"🫁"},{en:"spine",zh:"脊椎",emoji:"🦴"},
+    {en:"waist",zh:"腰",emoji:"🧍"},{en:"heel",zh:"腳跟",emoji:"🦶"} ]},
+  gear:{ name:"器材場地", icon:"🏆", sub:"12 字", words:[
+    {en:"ball",zh:"球",emoji:"⚽"},{en:"net",zh:"球網",emoji:"🥅"},
+    {en:"court",zh:"球場",emoji:"🏟️"},{en:"track",zh:"跑道",emoji:"🛤️"},
+    {en:"whistle",zh:"哨子",emoji:"🎵"},{en:"jersey",zh:"球衣",emoji:"👕"},
+    {en:"sneakers",zh:"球鞋",emoji:"👟"},{en:"medal",zh:"獎牌",emoji:"🏅"},
+    {en:"trophy",zh:"獎盃",emoji:"🏆"},{en:"coach",zh:"教練",emoji:"📋"},
+    {en:"referee",zh:"裁判",emoji:"🦺"},{en:"team",zh:"隊伍",emoji:"👥"} ]},
+};
+
+/* ---------- 狀態 ---------- */
+const S = { packKey:"actions", customWords:null, mode:"zh2en", totalTime:60,
+  timeLeft:60, score:0, combo:0, bestCombo:0, correctCount:0, total:0,
+  target:null, correctZone:null, roundStart:0, running:false, locked:false,
+  loopId:null };
+
+const ZONES = ["zTL","zTR","zBL","zBR"];
+const el = id => document.getElementById(id);
+const screens = { start:el("start"), game:el("game"), end:el("end") };
+function show(name){ for(const k in screens) screens[k].classList.toggle("active", k===name); }
+
+/* ---------- 音效（Web Audio，離線可用） ---------- */
+let AC=null;
+function audio(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return AC; }
+function beep(freq,dur,type="sine",vol=.2,when=0){
+  const ac=audio(); if(!ac) return;
+  const t=ac.currentTime+when, o=ac.createOscillator(), g=ac.createGain();
+  o.type=type; o.frequency.value=freq; o.connect(g); g.connect(ac.destination);
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+.01);
+  g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.start(t); o.stop(t+dur+.02);
+}
+function sCorrect(combo){ const base=520+Math.min(combo,8)*40; beep(base,.12,"triangle",.22); beep(base*1.5,.12,"sine",.15,.06); }
+function sWrong(){ beep(150,.25,"sawtooth",.2); beep(110,.3,"sawtooth",.15,.05); }
+function sTick(){ beep(880,.06,"square",.12); }
+function sWhistle(){ beep(1900,.14,"square",.14); beep(2300,.16,"square",.12,.1); }
+function sEnd(){ [523,659,784,1046].forEach((f,i)=>beep(f,.2,"triangle",.18,i*.12)); }
+
+/* ---------- 開始畫面：建立單字包按鈕 ---------- */
+function buildPackRow(){
+  const row=el("packRow"); row.innerHTML="";
+  for(const key in PACKS){
+    const p=PACKS[key];
+    const b=document.createElement("button");
+    b.className="chip"+(key===S.packKey?" sel":"");
+    b.dataset.pack=key;
+    b.innerHTML=`<div class="chip-icon">${p.icon}</div><div class="chip-name">${p.name}</div><div class="chip-sub">${p.sub}</div>`;
+    row.appendChild(b);
+  }
+  // 自訂單字包
+  const c=document.createElement("button");
+  c.className="chip z1"+(S.packKey==="custom"?" sel":"");
+  c.dataset.pack="custom";
+  c.innerHTML=`<div class="chip-icon">✏️</div><div class="chip-name">自訂單字包</div><div class="chip-sub">貼上你的單字</div>`;
+  row.appendChild(c);
+
+  row.querySelectorAll(".chip").forEach(chip=>{
+    chip.addEventListener("click",()=>{
+      row.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel"));
+      chip.classList.add("sel");
+      S.packKey=chip.dataset.pack;
+      el("customPanel").style.display = S.packKey==="custom" ? "block":"none";
+    });
+  });
+}
+
+// 模式與時間選擇
+document.querySelectorAll("[data-mode]").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("[data-mode]").forEach(x=>x.classList.remove("sel"));
+  b.classList.add("sel"); S.mode=b.dataset.mode;
+}));
+document.querySelectorAll("[data-time]").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("[data-time]").forEach(x=>x.classList.remove("sel"));
+  b.classList.add("sel"); S.totalTime=+b.dataset.time;
+}));
+
+/* ---------- 解析自訂單字 ---------- */
+function parseCustom(){
+  const lines=el("customText").value.split("\n").map(l=>l.trim()).filter(Boolean);
+  const words=[];
+  for(const l of lines){
+    const parts=l.split(/[,，\t]/).map(s=>s.trim());
+    if(parts[0]&&parts[1]) words.push({en:parts[0],zh:parts[1],emoji:parts[2]||"📘"});
+  }
+  return words;
+}
+
+/* ---------- 取得目前使用的字庫 ---------- */
+function activeWords(){
+  if(S.packKey==="custom"){ const w=parseCustom(); return w.length>=4?w:null; }
+  return PACKS[S.packKey].words;
+}
+
+/* ---------- 開始遊戲 ---------- */
+el("startBtn").addEventListener("click",()=>{
+  const words=activeWords();
+  if(!words){ alert("自訂單字包至少需要 4 個單字，格式：english,中文（每行一個）。"); return; }
+  audio(); // 使用者手勢中初始化音訊
+  S.words=words; S.timeLeft=S.totalTime; S.score=0; S.combo=0; S.bestCombo=0;
+  S.correctCount=0; S.total=0; S.running=false; S.locked=true;
+  el("vScore").textContent="0"; el("vCombo").textContent="0";
+  el("vTime").textContent=S.totalTime;
+  el("timerbar").style.transform="scaleX(1)";
+  show("game");
+  startCountdown();
+});
+
+/* ---------- 3-2-1 倒數 ---------- */
+function startCountdown(){
+  const cd=el("countdown"), num=el("countNum");
+  cd.classList.add("on"); let n=3; num.textContent=n; sTick();
+  const iv=setInterval(()=>{
+    n--;
+    if(n>0){ num.textContent=n; num.style.animation="none"; void num.offsetWidth; num.style.animation="cd .6s ease"; sTick(); }
+    else{ num.textContent="GO!"; num.style.color="var(--z3)"; sWhistle();
+      num.style.animation="none"; void num.offsetWidth; num.style.animation="cd .6s ease";
+      clearInterval(iv);
+      setTimeout(()=>{ cd.classList.remove("on"); num.style.color="var(--z2)"; beginPlay(); },550);
+    }
+  },700);
+}
+
+/* ---------- 進入正式遊戲 ---------- */
+function beginPlay(){
+  S.running=true; S.locked=false;
+  nextRound();
+  const started=performance.now();
+  const endAt=started+S.totalTime*1000;
+  S.loopId=setInterval(()=>{
+    const remain=Math.max(0,(endAt-performance.now())/1000);
+    S.timeLeft=remain;
+    el("vTime").textContent=Math.ceil(remain);
+    el("timerbar").style.transform="scaleX("+(remain/S.totalTime)+")";
+    if(remain<=0){ finish(); }
+  },100);
+}
+
+/* ---------- 產生一回合 ---------- */
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+function nextRound(){
+  if(!S.running) return;
+  S.locked=false;
+  const words=S.words;
+  const target=words[Math.floor(Math.random()*words.length)];
+  // 取 3 個不重複的干擾選項
+  const pool=words.filter(w=>w.en!==target.en);
+  shuffle(pool);
+  const choices=[target, pool[0], pool[1], pool[2]].filter(Boolean);
+  shuffle(choices);
+  S.target=target;
+
+  // 中央題目
+  const promptEnMode = (S.mode==="en2zh"); // en2zh：中央顯示英文，角落顯示中文
+  el("pEmoji").textContent=target.emoji||"📘";
+  el("pWord").textContent = promptEnMode ? target.en : target.zh;
+  el("pWord").style.fontSize = promptEnMode && target.en.length>9 ? "clamp(22px,4.4vh,40px)" : "";
+
+  // 四角落
+  ZONES.forEach((zid,i)=>{
+    const z=el(zid); const w=choices[i];
+    z.className="zone"; // 重設狀態
+    // 保留原本角落底色（由 CSS id 決定）
+    const label=z.querySelector(".zlabel");
+    if(w){
+      label.textContent = promptEnMode ? w.zh : w.en;
+      z.dataset.en=w.en; z.style.visibility="visible";
+      if(w.en===target.en) S.correctZone=zid;
+    }else{ z.style.visibility="hidden"; }
+  });
+  S.roundStart=performance.now();
+}
+
+/* ---------- 點擊角落 ---------- */
+ZONES.forEach(zid=>{
+  el(zid).addEventListener("click",()=>{
+    if(!S.running || S.locked) return;
+    const z=el(zid);
+    const isRight = z.dataset.en===S.target.en;
+    S.total++;
+    if(isRight){
+      S.locked=true;
+      const elapsed=performance.now()-S.roundStart;
+      const speedBonus=Math.max(0, Math.round(120 - elapsed/16)); // 快答加分
+      S.combo++; if(S.combo>S.bestCombo) S.bestCombo=S.combo;
+      const comboBonus=Math.round((S.combo-1)*15);
+      const gained=100+speedBonus+comboBonus;
+      S.score+=gained; S.correctCount++;
+      el("vScore").textContent=S.score;
+      el("vCombo").textContent=S.combo;
+      z.classList.add("correct");
+      floatScore(z,"+"+gained);
+      sCorrect(S.combo);
+      setTimeout(()=>{ if(S.running){ z.classList.remove("correct"); nextRound(); } },260);
+    }else{
+      S.locked=true;
+      S.combo=0; el("vCombo").textContent="0";
+      z.classList.add("wrong");
+      el(S.correctZone).classList.add("reveal"); // 顯示正確答案
+      sWrong();
+      setTimeout(()=>{
+        if(S.running){ z.classList.remove("wrong"); el(S.correctZone).classList.remove("reveal"); nextRound(); }
+      },780);
+    }
+  });
+});
+
+/* ---------- 飄分動畫 ---------- */
+function floatScore(zoneEl,text){
+  const f=document.createElement("div");
+  f.className="float"; f.textContent=text;
+  const r=zoneEl.getBoundingClientRect();
+  f.style.left=(r.left+r.width/2)+"px";
+  f.style.top=(r.top+r.height/2)+"px";
+  document.body.appendChild(f);
+  setTimeout(()=>f.remove(),820);
+}
+
+/* ---------- 結束 ---------- */
+function finish(){
+  S.running=false; clearInterval(S.loopId);
+  el("timerbar").style.transform="scaleX(0)";
+  const acc = S.total ? Math.round(S.correctCount/S.total*100) : 0;
+  el("eScore").textContent=S.score;
+  el("eCorrect").textContent=S.correctCount;
+  el("eAcc").textContent=acc+"%";
+  el("eBest").textContent=S.bestCombo;
+  el("eCheer").textContent = pickCheer(S.score, acc);
+  sEnd();
+  show("end");
+}
+function pickCheer(score,acc){
+  if(score>=1800 && acc>=85) return "🔥 全場最佳！反應跟命中率都頂尖！";
+  if(score>=1200) return "💪 很強！再拚一次刷新紀錄！";
+  if(acc>=80) return "🎯 命中率超高，下次拚速度！";
+  return "加油！多動、多看、多點，下一輪一定更好！";
+}
+
+/* ---------- 結束畫面按鈕 ---------- */
+el("againBtn").addEventListener("click",()=>{
+  S.timeLeft=S.totalTime; S.score=0; S.combo=0; S.bestCombo=0; S.correctCount=0; S.total=0;
+  el("vScore").textContent="0"; el("vCombo").textContent="0"; el("vTime").textContent=S.totalTime;
+  el("timerbar").style.transform="scaleX(1)";
+  show("game"); startCountdown();
+});
+el("menuBtn").addEventListener("click",()=>{ show("start"); });
+
+/* ---------- 初始化 ---------- */
+buildPackRow();
+</script>
+</body>
+</html>
